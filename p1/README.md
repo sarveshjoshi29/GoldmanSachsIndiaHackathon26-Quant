@@ -3,7 +3,7 @@
 Goldman Sachs India Hackathon 2026, Quant Challenge.
 
 Task: implement `PortfolioArchitect.allocate()`, called once per rebalance
-date (~40 calls/test case). Return a weight vector over 100 assets
+date. Return a weight vector over the 100 assets
 (SEC_001..SEC_100), max 50 non-zero positions, `|w_i| <= 0.10`.
 
 Score progression (grader score per submission):

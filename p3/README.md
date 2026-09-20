@@ -8,8 +8,7 @@ European swaption vol surface via Jamshidian's decomposition, (3) price a
 Bermudan payer swaption with early exercise on a lattice/PDE, (4) compute
 bucketed delta/vega by bump-and-reprice.
 
-No single numeric leaderboard score was logged for this problem (unlike P1/P2);
-progression below is by architecture and bug-fix milestones, in submission order.
+Progression below is by architecture and bug-fix milestones
 
 | File | What changed |
 |---|---|
