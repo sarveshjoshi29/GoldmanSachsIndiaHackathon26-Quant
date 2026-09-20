@@ -1,0 +1,227 @@
+You are a quantitative strategist on the Global Rates Exotic Trading desk at one of the world's largest market-making franchises. Your team sits at the epicentre of the institutional rates complex - structuring, pricing, and risk-managing bespoke interest rate derivatives for the most sophisticated counterparties on the planet: pension funds hedging multi-decade liability cashflows, insurance conglomerates managing guaranteed annuity obligations, corporate treasuries locking in pre-issuance swap spreads, and sovereign wealth funds expressing leveraged macro views on the shape and volatility of the yield curve.
+
+The global rates derivatives market - with over 500 trillion dollars in outstanding notional - demands infrastructure of extraordinary precision. A single basis point of mispricing on a 100 million notional Bermudan can translate into a six-figure P&L leak before the desk even opens for business. Models must be fast enough for real-time streaming risk, stable enough for overnight batch runs across thousands of positions, and theoretically sound enough to satisfy both front-office traders and model validation.
+
+A major insurance client has entered into a Bermudan payer swaption - a contract that gives them the right to enter a fixed-for-floating interest rate swap at any of several future exercise windows. Unlike its European cousin (exercisable only at a single expiry) or its American counterpart (exercisable continuously), the Bermudan occupies a uniquely challenging middle ground: it demands optimal stopping theory on a lattice, careful calibration to a multi-dimensional volatility surface, and a framework that gracefully handles the interdependence between early-exercise boundaries and discount curve dynamics.
+
+Your task: rebuild the pricing stack from first principles - the same exercise every quant on the street must master:
+
+1. Curve construction - Bootstrap the risk-free discount curve from market observables.
+
+2. Model calibration - Fit a Hull-White short-rate model to the European swaption volatility surface.
+
+3. Exotic pricing - Build a numerical pricer (tree or Monte Carlo) for the Bermudan swaption, capturing the early-exercise premium.
+
+4. Risk computation - Compute bucketed delta and vega sensitivities for the desk's daily risk report.
+
+Key Definitions
+Interest Rate Swap: A contract between two parties to exchange interest payments. In a fixed-for-floating swap, one party pays a fixed rate and receives a floating rate (e.g., SOFR) on a notional amount.
+
+European Swaption: An option giving the holder the right to enter into an interest rate swap at a specified future date. It can only be exercised on that single date.
+
+Bermudan Swaption: An option giving the holder the right to enter into an interest rate swap on any one of several specified exercise dates - but only once. More valuable than European, less than American.
+
+Payer Swaption: A swaption where the holder has the right to enter a swap paying the fixed rate and receiving the floating rate. It becomes more valuable when interest rates rise.
+
+Normal (Bachelier) Implied Volatility: The market convention for quoting swaption prices. The volatility parameter (in bps/year) that, when input to the Bachelier pricing formula, reproduces the market price.
+
+Hull-White Model: A one-factor Gaussian short-rate model with mean reversion: dr(t) = [θ(t) − a·r(t)] dt + σ(t) dW(t), where a is the mean reversion speed, σ(t) is the volatility, and θ(t) is chosen to exactly fit the initial yield curve.
+
+Trinomial Tree: A lattice method for numerically solving the short-rate model. At each node, the rate can move up, stay in the middle, or move down. Used for early-exercise pricing.
+
+Monte Carlo / Longstaff-Schwartz: A simulation method that generates random rate paths and uses cross-sectional regression at each exercise date to estimate continuation values. Enables early-exercise pricing without a lattice.
+
+Jamshidian's Decomposition: A technique for pricing coupon bond options (swaptions) under one-factor models. Because all bond prices are monotonic in the single state variable, a swaption decomposes into a portfolio of zero-coupon bond options - each with a closed-form Hull-White solution.
+
+Task 1: Yield Curve Construction (10 points)
+Construct discount factors and instantaneous forward rates from the provided zero curve.
+
+Formulas:
+
+Discount factor: P(0,T) = exp(−r(T)·T)
+Forward rate: f(0, T*i) = −[ln P(0, T*{i+1}) − ln P(0, T*i)] / (T*{i+1} − T_i) for each maturity except the last. For the last maturity, use the backward difference.
+For maturities not on the grid, use linear interpolation on continuously-compounded zero rates.
+Task 2: Hull-White Model Calibration (30 points)
+Model
+dr(t) = [θ(t) − a·r(t)] dt + σ(t) dW(t)
+
+a = mean reversion speed (constant, to be calibrated)
+σ(t) = piecewise-constant volatility (to be calibrated)
+θ(t) = drift function determined analytically from the yield curve (not free)
+Piecewise-Constant Volatility
+The σ(t) breakpoints align to the exercise dates and swap end:
+
+Breakpoints: [0, T₁, T₂, ..., Tₖ, swap_end] where T₁...Tₖ are the exercise dates. The number of sigma parameters N equals the number of breakpoint intervals. For example, with exercise_dates = [1, 2, 3, 4] and swap_end = 5:
+
+Parameter	Period
+σ₁	t ∈ [0, 1]
+σ₂	t ∈ (1, 2]
+σ₃	t ∈ (2, 3]
+σ₄	t ∈ (3, 4]
+σ₅	t ∈ (4, 5]
+Important: The number of sigma parameters varies across test cases because exercise dates differ. Your code must determine N dynamically from the input.
+
+Calibration Objective
+Minimize the RMSE between model-implied and market normal volatilities (in bps) across all swaption quotes provided in the input.
+
+Suggested starting point: [0.05, 0.008, 0.008, ..., 0.008] (mean reversion followed by N sigma values). You are free to use any optimizer and any other startiing point to minimize rmse.
+
+Guidance
+To price European swaptions for calibration, use any analytically tractable method valid under the Hull-White one-factor model. The model admits closed-form or semi-closed-form solutions for European swaptions — finding and implementing the right approach, keeping in mind the timelimit is part of the challenge.
+Task 3: Bermudan Swaption Pricing (30 points)
+Price the Bermudan payer swaption using your calibrated Hull-White model.
+
+Method
+You may use a recombining trinomial/binomial lattice, Monte Carlo simulation with Longstaff-Schwartz regression, or any other numerical method capable of handling early exercise. The primary objective is to produce prices that are close to the reference values. You can try to benchmark your answers against different methods.
+
+Exercise Logic
+This is a co-terminal Bermudan swaption: regardless of which exercise date is chosen, the underlying swap always ends at swap_end. For example with swap_end=5:
+
+Exercising at year 1 enters a 4-year swap (years 1→5)
+Exercising at year 2 enters a 3-year swap (years 2→5)
+Exercising at year 4 enters a 1-year swap (years 4→5)
+Optimal exercise decision:
+
+At each exercise date: V = max(exercise_value, continuation_value)
+At non-exercise times: V = discounted expected continuation value
+Exercise value: compute the value of entering the swap (paying fixed at strike) given current rates, using the Hull-White analytical bond price formula at tree nodes or simulated rate paths.
+Task 4: Delta and Vega Risk (30 points)
+Compute bucketed sensitivities using bump-and-reprice:
+
+Vega (sensitivity to each vol quote)
+For each of the swaption quotes in swaption_vols:
+
+1. Bump that vol quote by +1 bp
+
+2. Re-calibrate the model to the bumped surface
+
+3. Re-price the Bermudan with the re-calibrated model
+
+4. Vega = bumped_price − base_price (in dollars)
+
+Delta (sensitivity to each zero rate)
+For each zero rate point in zero_curve:
+
+1. Bump that zero rate by +1 bp (+0.0001)
+
+2. Re-calibrate the model (same vol surface, bumped curve)
+
+3. Re-price the Bermudan with the re-calibrated model
+
+4. Delta = bumped_price − base_price (in dollars)
+
+Assumptions
+Continuous compounding for all rates and discount factors
+Linear interpolation on zero rates for maturities not on the grid
+Year fractions computed directly (no business day or holiday adjustments)
+All market vols are ATM forward (K = forward swap rate for calibration)
+Scoring
+Scoring uses Mean Absolute Percentage Error (MAPE) with linear decay between thresholds:
+
+Task	Points	Metric	Full Marks (MAPE ≤)	Zero (MAPE ≥)
+Task 1 - Curve	10	MAPE of DFs + forward rates	0.05%	1%
+Task 2 - Calibration	30	MAPE of calibrated params (a, σ₁..σₙ)	2%	8%
+Task 3 - Pricing	30	MAPE of Bermudan price (\$)	3%	15%
+Task 4 - Greeks	30	Avg of vega MAPE + delta MAPE	5%	25%
+Between thresholds, scoring decays linearly. For example, if your price MAPE is 9%: Score = 30 × (15−9)/(15−3) = 15 points.
+
+Total score per test case = sum of task scores (max 100). Final score = average across all test cases.
+
+Tiebreaker: if scores are equal, faster runtime wins.
+
+⚠️ WARNING: Your code must be fully general and parameterized. Do NOT hardcode any values - including strikes, exercise dates, swap tenors, vol levels, or model parameters. Any solution that relies on memorized or hardcoded outputs will score zero on hidden cases.
+
+Technical Rules
+Allowed packages: numpy, scipy, pandas, json, math, os, sys, time
+Not allowed: QuantLib, any external quant library, pre-built rate model implementations
+I/O: Read single JSON from stdin, print single JSON to stdout
+Single Python file: solution.py - executed via python solution.py
+Runtime limit: 180 seconds per test case
+Code must be fully parameterized - read all specs from stdin at runtime
+If code crashes or produces no output for a task, you receive 0 for that task
+Input Format
+
+Input Format
+Read a single JSON object from stdin. The JSON has the following structure:
+
+{
+"zero_curve": [
+{"maturity": 0.5, "rate": 0.0420},
+{"maturity": 1.0, "rate": 0.0415},
+{"maturity": 2.0, "rate": 0.0405},
+...
+],
+"swaption_vols": [
+{"expiry": 1, "tenor": 1, "vol_bps": 86},
+{"expiry": 1, "tenor": 2, "vol_bps": 85},
+...
+],
+"bermudan_spec": {
+"notional": 100000000,
+"type": "payer",
+"strike": 0.04,
+"exercise_dates": [1, 2, 3, 4],
+"swap_end": 5,
+"payment_frequency": "annual",
+"compounding": "continuous"
+}
+}
+
+Input Fields
+Field	Description
+zero_curve[].maturity	Maturity in years
+zero_curve[].rate	SOFR continuously compounded zero rate
+swaption_vols[].expiry	Swaption expiry (years)
+swaption_vols[].tenor	Underlying swap tenor (years)
+swaption_vols[].vol_bps	Normal (Bachelier) implied vol in basis points
+bermudan_spec.notional	Notional amount in dollars
+bermudan_spec.type	Always "payer"
+bermudan_spec.strike	Fixed rate (decimal, e.g. 0.04 = 4%)
+bermudan_spec.exercise_dates	List of exercise years (variable length)
+bermudan_spec.swap_end	Year the underlying swap ends
+bermudan_spec.payment_frequency	Always "annual"
+bermudan_spec.compounding	Always "continuous"
+Constraints
+
+N/A
+
+Output Format
+
+Output Format
+Print a single JSON object to stdout containing all task outputs:
+
+{
+"curve": [
+{"maturity": 0.5, "discount_factor": 0.9792, "forward_rate": 0.0410},
+...
+],
+"calibration": {
+"model": "Hull-White",
+"parameters": {
+"mean_reversion": 0.030128,
+"sigma_1": 0.008510,
+"sigma_2": 0.009320,
+...
+}
+},
+"price_dollars": 1178191.68,
+"vega": [
+{"expiry": 1, "tenor": 1, "vega_dollars_per_bp": 2426.78},
+...
+],
+"delta": [
+{"maturity": 0.5, "delta_dollars_per_bp": 7308.51},
+...
+]
+}
+
+Output Fields
+Section	Field	Description
+curve[]	discount_factor	P(0,T) = exp(−r·T), rounded to 4 decimal places
+curve[]	forward_rate	Instantaneous forward rate f(0,T), rounded to 4 decimal places
+calibration.parameters	mean_reversion	Calibrated mean reversion a, 6 decimal places
+calibration.parameters	sigma_1..N	Piecewise-constant σ values, 6 decimal places
+price_dollars	-	Bermudan swaption price in dollars
+vega[]	vega_dollars_per_bp	Price change per +1bp bump in each vol quote
+delta[]	delta_dollars_per_bp	Price change per +1bp bump in each zero rate
+

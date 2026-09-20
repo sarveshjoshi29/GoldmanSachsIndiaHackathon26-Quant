@@ -1,0 +1,120 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.7in]{geometry}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{multicol}
+\usepackage{parskip}
+
+\definecolor{gsblue}{RGB}{31,73,125}
+\definecolor{gslight}{RGB}{47,107,168}
+\definecolor{term}{RGB}{176,32,32}
+
+\titleformat{\section}{\large\bfseries\color{gsblue}}{}{0em}{}
+\titlespacing{\section}{0pt}{8pt}{3pt}
+
+\newcommand{\term}[1]{\textcolor{term}{\textbf{#1}}}
+\setlist[description]{leftmargin=0em,itemsep=3pt,topsep=2pt}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries\color{gsblue} Quant Finance — Fundamental Terms}\\[2pt]
+{\small A short, crystal-clear reference\quad|\quad GS Quant Hackathon 2026}
+\end{center}
+\vspace{2pt}\hrule\vspace{6pt}
+
+%================================================================
+\section{1. Returns \& Risk Basics}
+\begin{description}
+\item[\term{Simple return}] Fractional price change over one period.
+$\;r_t = \dfrac{P_t - P_{t-1}}{P_{t-1}}$. \emph{(The definition this hackathon mandates.)}
+\item[\term{Log return}] $\ln(P_t/P_{t-1})$. Adds across time; close to simple return for small moves.
+\item[\term{Volatility ($\sigma$)}] Standard deviation of returns — how much they scatter. A risk measure.
+Annualised: $\sigma_{\text{ann}} = \sigma_{\text{daily}}\sqrt{252}$ (252 trading days/yr).
+\item[\term{Variance}] $\sigma^2$. What the hedge metric (HER) actually minimises.
+\item[\term{Covariance / Correlation}] How two assets move together. Correlation $\in[-1,1]$ is the
+scale-free version. High correlation $=$ good hedge candidate.
+\item[\term{Basis point (bp)}] $0.01\% = 0.0001$. The standard unit for yields, spreads, and costs.
+\end{description}
+
+%================================================================
+\section{2. Risk-Adjusted Performance}
+\begin{description}
+\item[\term{Sharpe ratio}] Return earned per unit of total risk:
+$\;\mathrm{Sharpe} = \dfrac{\mathbb{E}[r] - r_f}{\sigma}$, where $r_f$ is the risk-free rate.
+Annualised by $\times\sqrt{252}$. Higher is better; $>1$ is good, $>2$ is excellent.
+\item[\term{Sortino ratio}] Like Sharpe but divides by \emph{downside} deviation only — penalises
+losses, not upside swings.
+\item[\term{Information ratio (IR)}] Active return over a benchmark per unit of tracking error:
+$\;\mathrm{IR} = \dfrac{\mathbb{E}[r - r_b]}{\mathrm{std}(r - r_b)}$.
+\item[\term{Max drawdown}] Largest peak-to-trough drop in cumulative value. Measures worst-case pain.
+\item[\term{Alpha ($\alpha$) / Beta ($\beta$)}] From $r = \alpha + \beta\, r_{\text{market}} + \varepsilon$:
+$\beta$ is sensitivity to the market; $\alpha$ is excess return unexplained by it. \emph{Your proxy
+``weights'' are betas.}
+\item[\term{$R^2$}] Fraction of variance the model explains $(0\text{--}1)$. $R^2=1$ is a perfect fit.
+\end{description}
+
+%================================================================
+\section{3. Fixed Income \& This Problem}
+\begin{description}
+\item[\term{NAV}] \emph{Net Asset Value} — fair per-share value of an ETF's holdings. \textbf{Part 1}
+estimates it from proxy returns.
+\item[\term{Duration}] Sensitivity of a bond's price to interest-rate moves (in years).
+\item[\term{DV01}] \emph{Dollar Value of 01} — \$ P\&L for a \textbf{1bp move in yield}. The \textbf{rates}
+risk number the Part-2 evaluator computes.
+\item[\term{CS01}] \$ P\&L for a \textbf{1bp move in credit spread}. The \textbf{credit} risk number in Part 2.
+\item[\term{Credit spread}] Extra yield a risky bond pays over a Treasury — compensation for default risk.
+Widens when markets fear defaults.
+\item[\term{Rates vs Credit}] The two orthogonal risk families of a bond ETF: yield-curve moves (DV01)
+vs default-spread moves (CS01).
+\item[\term{Par / notional}] Face value of a position. ``100 mm notional'' $=$ \$100M face. Futures, bonds
+and CDX are quoted per 100 par; ETFs are quoted per share.
+\end{description}
+
+%================================================================
+\section{4. Hedging Metrics (Part 3)}
+\begin{description}
+\item[\term{Hedge}] Offsetting position that cancels the risk of another. Static $=$ set once, held.
+\item[\term{Hedge Effectiveness Ratio (HER)}] How much variance the hedge removes:
+$\;\mathrm{HER} = 1 - \dfrac{\mathrm{Var}(\text{Net P\&L})}{\mathrm{Var}(\text{Portfolio P\&L})}$.
+$\mathrm{HER}=1$ $=$ perfect hedge.
+\item[\term{Tracking error (TE)}] Volatility of the leftover P\&L. Here:
+$\;\mathrm{TE} = \dfrac{\mathrm{StdDev}(\text{Net})}{\mathrm{StdDev}(\text{Portfolio})}$. Lower $=$ tighter hedge.
+\item[\term{Hedge ratio}] How many units of the hedge instrument per unit of exposure (often a $\beta$).
+\item[\term{Transaction cost}] What you pay to trade, charged in bp of notional. A one-time penalty at
+inception here (ETFs 2bp, futures/bonds 0.5bp, CDX 1bp).
+\end{description}
+
+%================================================================
+\section{5. Error Metrics}
+\begin{description}
+\item[\term{MAPE}] \emph{Mean Absolute Percentage Error}:
+$\;\mathrm{mean}\!\left(\dfrac{|\hat{y}-y|}{|y|}\right)$. Scale-free; the \textbf{Part-1 NAV} score (lower is better).
+\item[\term{MAE / RMSE}] Mean absolute error; root-mean-square error (RMSE punishes big misses harder).
+\item[\term{L2 error}] Euclidean distance $\sqrt{\sum(a-b)^2}$ — how Part 2 compares your DV01/CS01 to the benchmark.
+\end{description}
+
+%================================================================
+\section{6. Modelling \& Regression}
+\begin{description}
+\item[\term{OLS}] \emph{Ordinary Least Squares} — fit coefficients by minimising squared error. Unbiased but
+overfits with many correlated features.
+\item[\term{Regularisation}] Adding a penalty on coefficient size to curb overfitting.
+\item[\term{Ridge (L2)}] Penalises $\sum w^2$ — shrinks all weights, keeps them all non-zero (dense).
+\item[\term{Lasso (L1)}] Penalises $\sum|w|$ — drives weak weights to \emph{exactly zero} (sparse / feature selection).
+\item[\term{ElasticNet}] Blend of L1+L2 (\texttt{l1\_ratio}) — sparse \emph{and} stable under collinearity.
+\item[\term{Overfitting}] Model memorises training noise, fails on new data. The enemy of a hidden test set.
+\item[\term{Cross-validation (CV)}] Split data into folds to tune hyper-parameters without peeking at the test set.
+\item[\term{TimeSeriesSplit}] Walk-forward CV: always train on the past, validate on the future — no leakage.
+\item[\term{Winsorising}] Clipping extreme returns to a percentile (e.g.\ 1\%/99\%) so outliers don't distort the fit.
+\item[\term{Collinearity}] Features that move together (e.g.\ TY $\leftrightarrow$ UST\_10Y); makes plain OLS weights unstable.
+\end{description}
+
+\vspace{4pt}\hrule\vspace{3pt}
+\begin{center}\small\textit{Rule of thumb: returns measure reward, volatility measures risk, and every
+``ratio'' above is just one divided by the other.}\end{center}
+
+\end{document}
